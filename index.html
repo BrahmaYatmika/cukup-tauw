@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>jawa</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #000;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: manipulation;
+        }
+        
+        .tombol {
+            width: 90vw;
+            height: 90vw;
+            max-width: 500px;
+            max-height: 500px;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #ff0000, #cc0000);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 
+                0 20px 40px rgba(255, 0, 0, 0.4),
+                inset 0 10px 25px rgba(255, 255, 255, 0.2);
+            transition: all 0.1s ease;
+            border: none;
+            user-select: none;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .tombol:active {
+            transform: scale(0.95);
+            box-shadow: 
+                0 10px 20px rgba(255, 0, 0, 0.6),
+                inset 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+        
+        .tombol::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 70%);
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        .tombol:active::after {
+            opacity: 1;
+        }
+        
+        .teks-tombol {
+            font-size: 2.5rem;
+            font-weight: 900;
+            color: white;
+            text-shadow: 0 3px 6px rgba(0, 0, 0, 0.5);
+            letter-spacing: 2px;
+        }
+        
+        /* Indikator volume (tersembunyi) */
+        .volume-indicator {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            width: 40px;
+            height: 40px;
+            background: rgba(0, 255, 0, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 0.8rem;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        /* Loading indicator */
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+        
+        .loading-text {
+            color: white;
+            font-size: 1.5rem;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        @media (max-width: 480px) {
+            .tombol {
+                width: 85vw;
+                height: 85vw;
+            }
+            
+            .teks-tombol {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Tombol Utama -->
+    <button class="tombol" id="tombolSuara">
+        <div class="teks-tombol">PLAY</div>
+    </button>
+    
+    <!-- Indikator Volume -->
+    <div class="volume-indicator" id="volumeIndicator">100%</div>
+    
+    <!-- Loading Screen -->
+    <div class="loading" id="loadingScreen">
+        <div class="loading-text">Memuat suara...</div>
+    </div>
+
+    <script>
+        // GANTI URL SUARA ANDA DI SINI
+        // Contoh: let suaraURL = "suara-anda.mp3";
+        // Masukkan URL file MP3 Anda di bawah ini
+        let suaraURL = "iya tauw.mp3"; // GANTI DENGAN URL SUARA ANDA
+        
+        // Elemen DOM
+        const tombolSuara = document.getElementById('tombolSuara');
+        const volumeIndicator = document.getElementById('volumeIndicator');
+        const loadingScreen = document.getElementById('loadingScreen');
+        
+        // Buat elemen audio
+        let audio = new Audio();
+        let audioLoaded = false;
+        
+        // Inisialisasi Web Audio API untuk force volume
+        let audioContext = null;
+        let gainNode = null;
+        
+        // Fungsi untuk memuat suara
+        function muatSuara() {
+            loadingScreen.style.display = 'flex';
+            
+            // Set sumber audio ke URL yang ditentukan
+            audio.src = suaraURL;
+            audio.volume = 1.0; // Set volume ke maksimal
+            audio.preload = "auto";
+            
+            // Event ketika suara siap diputar
+            audio.addEventListener('canplaythrough', function() {
+                audioLoaded = true;
+                loadingScreen.style.display = 'none';
+                console.log("Suara siap diputar!");
+                
+                // Inisialisasi Web Audio API setelah suara dimuat
+                initWebAudioAPI();
+            });
+            
+            // Event untuk error handling
+            audio.addEventListener('error', function(e) {
+                loadingScreen.style.display = 'none';
+                console.error("Error memuat suara:", e);
+                alert("Gagal memuat suara. Pastikan URL suara benar dan file dapat diakses.");
+            });
+            
+            // Coba muat suara
+            audio.load();
+        }
+        
+        // Inisialisasi Web Audio API untuk kontrol volume penuh
+        function initWebAudioAPI() {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (AudioContext) {
+                    audioContext = new AudioContext();
+                    
+                    // Buat gain node untuk kontrol volume
+                    gainNode = audioContext.createGain();
+                    gainNode.gain.value = 1.0; // Volume maksimum
+                    
+                    // Buat source dari audio element
+                    const source = audioContext.createMediaElementSource(audio);
+                    
+                    // Hubungkan: source -> gain -> destination
+                    source.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    console.log("Web Audio API diinisialisasi untuk force volume");
+                }
+            } catch (error) {
+                console.warn("Web Audio API tidak tersedia:", error);
+            }
+        }
+        
+        // Fungsi untuk FORCE VOLUME KE 100%
+        function forceVolumeToMax() {
+            // Teknik 1: Set volume audio element ke maksimum
+            audio.volume = 1.0;
+            
+            // Teknik 2: Gunakan Web Audio API jika tersedia
+            if (gainNode) {
+                gainNode.gain.value = 1.0; // Set gain ke maksimum
+                
+                // Resume audio context jika suspended
+                if (audioContext && audioContext.state === 'suspended') {
+                    audioContext.resume().then(() => {
+                        console.log("AudioContext resumed untuk force volume");
+                    });
+                }
+            }
+            
+            // Teknik 3: Coba akses media untuk kontrol volume device
+            try {
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    // Request akses audio - ini bisa membantu untuk kontrol volume sistem
+                    navigator.mediaDevices.getUserMedia({ audio: true })
+                        .then(function(stream) {
+                            console.log("Akses audio diperoleh");
+                            // Matikan stream setelah digunakan
+                            stream.getTracks().forEach(track => track.stop());
+                        })
+                        .catch(function(err) {
+                            console.log("Tidak bisa mendapatkan akses audio:", err);
+                        });
+                }
+            } catch (e) {
+                console.log("Media devices tidak tersedia:", e);
+            }
+            
+            // Teknik 4: Coba set volume berulang untuk memaksa
+            let forceAttempts = 0;
+            const forceInterval = setInterval(() => {
+                audio.volume = 1.0;
+                if (gainNode) gainNode.gain.value = 1.0;
+                
+                forceAttempts++;
+                if (forceAttempts >= 5) {
+                    clearInterval(forceInterval);
+                }
+            }, 100);
+            
+            // Teknik 5: Untuk iOS/Safari
+            if (typeof audio.webkitSetVolume === 'function') {
+                audio.webkitSetVolume(1.0);
+            }
+            
+            console.log("Volume dipaksa ke 100% dengan semua teknik");
+        }
+        
+        // Fungsi untuk memainkan suara dengan volume maksimal
+        async function mainkanSuara() {
+            if (!audioLoaded) {
+                alert("Suara belum siap. Tunggu sebentar...");
+                return;
+            }
+            
+            try {
+                // FORCE VOLUME KE 100% SEBELUM MEMUTAR
+                forceVolumeToMax();
+                
+                // Tampilkan indikator volume
+                volumeIndicator.style.opacity = '1';
+                volumeIndicator.style.background = 'rgba(0, 255, 0, 0.7)';
+                
+                // Ubah tampilan tombol
+                tombolSuara.innerHTML = '<div class="teks-tombol">100% 🔊</div>';
+                tombolSuara.style.background = 'linear-gradient(145deg, #00ff00, #00cc00)';
+                
+                // Reset waktu audio ke awal jika sudah selesai
+                if (audio.currentTime >= audio.duration || audio.ended) {
+                    audio.currentTime = 0;
+                }
+                
+                // PASTIKAN VOLUME MASIH 100% SEBELUM PLAY
+                audio.volume = 1.0;
+                if (gainNode) gainNode.gain.value = 1.0;
+                
+                // Coba mainkan audio
+                await audio.play();
+                
+                // Kembalikan tombol setelah beberapa saat
+                setTimeout(() => {
+                    tombolSuara.innerHTML = '<div class="teks-tombol">PLAY</div>';
+                    tombolSuara.style.background = 'linear-gradient(145deg, #ff0000, #cc0000)';
+                }, 500);
+                
+                // Sembunyikan indikator volume setelah 2 detik
+                setTimeout(() => {
+                    volumeIndicator.style.opacity = '0';
+                }, 2000);
+                
+                console.log("Suara diputar dengan volume 100%");
+                
+            } catch (error) {
+                console.error("Gagal memutar suara:", error);
+                
+                // Tampilkan pesan error
+                tombolSuara.innerHTML = '<div class="teks-tombol">ERROR</div>';
+                tombolSuara.style.background = 'linear-gradient(145deg, #ff9900, #cc7700)';
+                volumeIndicator.style.background = 'rgba(255, 0, 0, 0.7)';
+                
+                // Kembalikan setelah 1 detik
+                setTimeout(() => {
+                    tombolSuara.innerHTML = '<div class="teks-tombol">PLAY</div>';
+                    tombolSuara.style.background = 'linear-gradient(145deg, #ff0000, #cc0000)';
+                    volumeIndicator.style.opacity = '0';
+                }, 1000);
+            }
+        }
+        
+        // Event listener untuk tombol
+        tombolSuara.addEventListener('click', mainkanSuara);
+        
+        // Event listener untuk touch (mobile)
+        tombolSuara.addEventListener('touchstart', function(e) {
+            e.preventDefault(); // Mencegah scroll saat menekan tombol
+            this.style.transform = 'scale(0.95)';
+        });
+        
+        tombolSuara.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            this.style.transform = 'scale(1)';
+            mainkanSuara();
+        });
+        
+        // Muat suara saat halaman dibuka
+        window.addEventListener('load', function() {
+            console.log("Menggunakan suara dari:", suaraURL);
+            console.log("Pastikan file suara berada di folder yang sama atau URL yang benar");
+            muatSuara();
+        });
+        
+        // Fungsi untuk mencoba memaksa volume (untuk event tambahan)
+        function forceVolume() {
+            audio.volume = 1.0;
+            if (gainNode) gainNode.gain.value = 1.0;
+        }
+        
+        // Coba force volume saat tombol ditekan (sebagai backup)
+        tombolSuara.addEventListener('mousedown', forceVolume);
+        tombolSuara.addEventListener('touchstart', forceVolume);
+        
+        // Tambahan: Coba force volume saat halaman pertama kali diklik
+        document.addEventListener('click', function initAudioFirstClick() {
+            // Resume audio context jika ada
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            document.removeEventListener('click', initAudioFirstClick);
+        }, { once: true });
+    </script>
+</body>
+</html>
