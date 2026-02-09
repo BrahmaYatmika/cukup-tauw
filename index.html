@@ -141,6 +141,7 @@
         let audioLoaded = false;
         let audioContext = null;
         let gainNode = null;
+        let sudahDitekan = false;
 
         function muatSuara() {
             loadingScreen.style.display = 'flex';
@@ -225,6 +226,12 @@
                 return;
             }
             
+            if (sudahDitekan) {
+                return;
+            }
+            
+            sudahDitekan = true;
+            
             try {
                 forceVolumeToMax();
                 volumeIndicator.style.opacity = '1';
@@ -233,7 +240,10 @@
                 tombolSuara.innerHTML = '<div class="teks-tombol">JAWA</div>';
                 tombolSuara.style.background = 'linear-gradient(145deg, #00ff00, #00cc00)';
                 
-                audio.currentTime = 0;
+                setTimeout(() => {
+                    tombolSuara.innerHTML = '<div class="teks-tombol">PLAY</div>';
+                    tombolSuara.style.background = 'linear-gradient(145deg, #ff0000, #cc0000)';
+                }, 200);
                 
                 audio.volume = 1.0;
                 if (gainNode) gainNode.gain.value = 1.0;
@@ -249,6 +259,7 @@
                 tombolSuara.innerHTML = '<div class="teks-tombol">ERROR</div>';
                 tombolSuara.style.background = 'linear-gradient(145deg, #ff9900, #cc7700)';
                 volumeIndicator.style.background = 'rgba(255, 0, 0, 0.7)';
+                sudahDitekan = false;
                 
                 setTimeout(() => {
                     tombolSuara.innerHTML = '<div class="teks-tombol">PLAY</div>';
