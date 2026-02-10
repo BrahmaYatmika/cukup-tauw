@@ -190,6 +190,8 @@
                 }
             }
             
+            // HAPUS BAGIAN YANG MEMINTA AKSES MICROPHONE
+            /*
             try {
                 if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                     navigator.mediaDevices.getUserMedia({ audio: true })
@@ -203,6 +205,7 @@
             } catch (e) {
                 console.log("Media devices tidak tersedia:", e);
             }
+            */
             
             let forceAttempts = 0;
             const forceInterval = setInterval(() => {
@@ -248,10 +251,18 @@
                 audio.volume = 1.0;
                 if (gainNode) gainNode.gain.value = 1.0;
                 
+                // Coba resume context audio terlebih dahulu
+                if (audioContext && audioContext.state === 'suspended') {
+                    await audioContext.resume();
+                }
+                
+                // Reset dan mainkan audio
+                audio.currentTime = 0;
                 await audio.play();
                 
                 setTimeout(() => {
                     volumeIndicator.style.opacity = '0';
+                    sudahDitekan = false; // Reset agar bisa ditekan lagi
                 }, 2000);
                 
             } catch (error) {
@@ -294,11 +305,20 @@
         tombolSuara.addEventListener('mousedown', forceVolume);
         tombolSuara.addEventListener('touchstart', forceVolume);
         
+        // Interaksi pertama untuk mengaktifkan audio context
         document.addEventListener('click', function initAudioFirstClick() {
             if (audioContext && audioContext.state === 'suspended') {
                 audioContext.resume();
             }
             document.removeEventListener('click', initAudioFirstClick);
+        }, { once: true });
+        
+        // Event listener untuk halaman agar audio bisa dimulai
+        document.addEventListener('touchend', function initAudioFirstTouch() {
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            document.removeEventListener('touchend', initAudioFirstTouch);
         }, { once: true });
     </script>
 </body>
